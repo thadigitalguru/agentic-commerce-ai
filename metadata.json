@@ -1,0 +1,7 @@
+{
+  "name": "Agentic Commerce Merchant Dashboard",
+  "description": "An AI-powered commerce platform for WhatsApp-first sellers. Manage your catalog, track orders, and monitor your AI sales agent in real-time.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
