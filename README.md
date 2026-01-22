@@ -1,13 +1,18 @@
 # Agentic Commerce Merchant Dashboard
 
-An AI-powered commerce platform for WhatsApp-first sellers. This dashboard allows merchants to manage their product catalog, track orders, and monitor their Agentic AI sales bot in real-time.
+An AI-powered commerce platform to turn WhatsApp and Instagram DMs into paid orders. This dashboard allows merchants to manage their product catalog, track orders, and monitor their Agentic AI sales bot in real-time.
 
-## 🚀 Features
+## 🚀 MVP Features
 
-- **Neural Sales Core**: AI-driven product discovery and cart management via Gemini 3.
-- **WhatsApp Simulator**: Real-time simulation of customer interactions with "Human Takeover" mode.
-- **AI Product Photography**: Generate professional product images using Gemini 2.5 Flash Image.
-- **Behavioral Pulse**: Real-time analytics on conversion speed, sentiment, and revenue attribution.
+Based on the official Product Requirements Document, the MVP scope includes:
+
+- **WhatsApp Chat Interface**: Customer-facing chat for the entire sales flow.
+- **Product Catalog**: Merchant ability to list products with images.
+- **Cart & Order State Machine**: Manages customer carts and order statuses.
+- **AI-Assisted Agent**: Handles FAQs and provides product guidance.
+- **M-Pesa Payment Integration**: Native STK push for seamless checkout.
+- **Abandoned Cart Recovery**: Automated reminders to recover lost sales.
+- **Minimal Merchant Dashboard**: A unified interface for orders, catalog, and conversations.
 
 ## 🛠 Tech Stack
 
