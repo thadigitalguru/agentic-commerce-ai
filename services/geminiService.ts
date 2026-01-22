@@ -1,9 +1,20 @@
-
 import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
 import { Product, AgentState, AgentConfig, ChatLog } from "../types";
 import { settingsService } from "./settingsService";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Lazily initialize the GoogleGenAI client to ensure it always uses
+ * the most up-to-date API_KEY injected by the build system.
+ */
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("Gemini API Key is missing. Please set API_KEY in your environment variables.");
+    // Return a dummy client to prevent immediate crashes, though calls will fail
+    return new GoogleGenAI({ apiKey: 'MISSING_API_KEY' });
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 const addToCartTool: FunctionDeclaration = {
   name: 'add_to_cart',
@@ -95,7 +106,7 @@ export async function processAgentMessage(
   currentState: AgentState
 ): Promise<{ reply: string; intent: string; reasoning: string; urgency: string; sentiment: string; newState: AgentState }> {
   const config = settingsService.getConfig();
-  // We still process logic even if takeover is active to provide "suggestions" to the merchant
+  const ai = getAIClient();
   
   const productsContext = products.map(p => 
     `ID: ${p.id} | Name: ${p.name} | Price: ${p.currency} ${p.price}`
@@ -153,7 +164,6 @@ export async function processAgentMessage(
       }
     }
 
-    // Logic for address collection
     if (currentState.currentStep === 'collecting_address' && !currentState.address && message.length > 5) {
       newState.address = message;
       newState.currentStep = 'collecting_payment';
@@ -172,12 +182,14 @@ export async function processAgentMessage(
       newState 
     };
   } catch (error) {
+    console.error("AI Error:", error);
     return { reply: "I'm checking that for you...", intent: "other", reasoning: "Error", urgency: "low", sentiment: "neutral", newState: currentState };
   }
 }
 
 export async function generateRecoveryNudge(cart: any): Promise<string> {
   const config = settingsService.getConfig();
+  const ai = getAIClient();
   const prompt = `Customer ${cart.customerName} left ${cart.items[0].name} (KES ${cart.total}) in cart. 
   Create a nudge message. 
   BONUS: Generate a one-time 10% discount code starting with "KARIBU" and mention it.
@@ -201,6 +213,7 @@ export async function analyzeIntents(logs: ChatLog[]): Promise<Record<string, nu
 }
 
 export async function generateProductImage(prompt: string): Promise<string> {
+  const ai = getAIClient();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -209,5 +222,8 @@ export async function generateProductImage(prompt: string): Promise<string> {
     });
     const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
     return part ? `data:image/png;base64,${part.inlineData.data}` : '';
-  } catch (e) { return ''; }
+  } catch (e) { 
+    console.error("Image Generation Error:", e);
+    return ''; 
+  }
 }

@@ -3,14 +3,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from './components/Layout';
 import WhatsAppSimulator from './components/WhatsAppSimulator';
 import { 
-  BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer
 } from 'recharts';
 import { 
   DollarSign, Plus, Trash2, TrendingUp, Loader2, X, Target, ArrowUpRight, MonitorPlay, 
-  UserCheck, Zap, Save, Sparkles, ZapIcon, Crown, Coffee, Languages, Wand2, 
-  ImageIcon, History, AlertCircle, Mic, MicOff, Volume2, MessageSquareText,
-  ShoppingBag, Tag, CheckCircle2, BrainCircuit, Activity, Heart, ThumbsUp, ThumbsDown,
+  UserCheck, Zap, Sparkles, Crown, Languages, 
+  ImageIcon, Mic, MessageSquareText,
+  ShoppingBag, CheckCircle2, BrainCircuit, Activity,
   ChevronRight, Box
 } from 'lucide-react';
 import { Product, Order, OrderStatus, ChatLog, AgentConfig, PersonaTemplate, AbandonedCart } from './types';
@@ -18,7 +17,8 @@ import { productService } from './services/productService';
 import { orderService } from './services/orderService';
 import { chatService } from './services/chatService';
 import { settingsService, PERSONA_PRESETS } from './services/settingsService';
-import { generateProductImage, analyzeIntents, generateRecoveryNudge } from './services/geminiService';
+import { generateProductImage, analyzeIntents } from './services/geminiService';
+import { GoogleGenAI, Modality } from "@google/genai";
 
 const COLORS = ['#16a34a', '#2563eb', '#9333ea', '#ea580c', '#ef4444', '#6b7280'];
 
@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
-  const [abandoned, setAbandoned] = useState<AbandonedCart[]>([
+  const [abandoned] = useState<AbandonedCart[]>([
     { id: 1, customerName: "Otieno J.", total: 4500, lastActive: "2 hours ago", items: [{ productId: 1, name: "Luxury Red Sneakers", price: 4500, quantity: 1 }], recoveryStatus: 'new' },
     { id: 2, customerName: "Sarah M.", total: 3200, lastActive: "4 hours ago", items: [{ productId: 2, name: "Smart Watch", price: 3200, quantity: 1 }], recoveryStatus: 'new' },
   ]);
@@ -220,10 +220,6 @@ const App: React.FC = () => {
                          <span className={`font-black uppercase text-[10px] ${log.sender === 'user' ? 'text-blue-400' : 'text-green-400'}`}>
                             {log.sender.toUpperCase()} | {log.intent?.toUpperCase() || "OTHER"}
                          </span>
-                         <div className="flex items-center space-x-2">
-                           <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-green-400"><ThumbsUp size={12} /></button>
-                           <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-red-400"><ThumbsDown size={12} /></button>
-                         </div>
                       </div>
                       <p className="text-gray-300 leading-relaxed mb-2">{log.message}</p>
                       {log.reasoning && (
@@ -288,6 +284,8 @@ const App: React.FC = () => {
   );
 };
 
+// --- HELPER COMPONENTS ---
+
 const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
   <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 group">
     <div className="flex justify-between items-start mb-6">
@@ -301,34 +299,19 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
   </div>
 );
 
-// Added explicit typing to props to fix "unknown" type error in JSX at line 321
 const AnalyticsTab = ({ intents }: { intents: Record<string, number> }) => (
   <div className="space-y-10 animate-in fade-in duration-500 pb-20">
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm">
-        <h3 className="text-lg font-black mb-8 flex items-center">
+      <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col items-center">
+        <h3 className="text-lg font-black mb-8 flex items-center w-full">
           <Target size={20} className="mr-2 text-blue-600" /> Intelligent Intent Breakdown
         </h3>
-        <div className="h-[350px] relative">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={Object.entries(intents).map(([k, v]) => ({ name: k, value: v }))} cx="50%" cy="50%" innerRadius={80} outerRadius={100} paddingAngle={8} dataKey="value" stroke="none">
-                {Object.entries(intents).map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-             {/* Use typed intents to ensure reduce returns a valid number/ReactNode */}
-             <span className="text-3xl font-black text-gray-900">{Object.values(intents).reduce((a: number, b: number) => a + b, 0)}</span>
-             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Interactions</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-center gap-6 mt-4">
-           {Object.keys(intents).map((k, i) => (
-             <div key={k} className="flex items-center space-x-2">
-               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
-               <span className="text-[10px] font-black uppercase text-gray-500">{k}</span>
+        <p className="text-gray-400 text-sm mb-10">Historical intent attribution based on last 100 conversations.</p>
+        <div className="grid grid-cols-2 gap-4 w-full">
+           {Object.entries(intents).map(([k, v], i) => (
+             <div key={k} className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{k}</span>
+                <span className="text-lg font-black text-gray-900">{v}</span>
              </div>
            ))}
         </div>
@@ -360,7 +343,6 @@ const AnalyticsTab = ({ intents }: { intents: Record<string, number> }) => (
 const OrdersTab = ({ orders, onUpdateStatus, selectedOrder, setSelectedOrder }: any) => {
   return (
     <div className="relative h-full flex flex-col space-y-8 animate-in fade-in duration-500 pb-20">
-      {/* Order Detail Sidebar */}
       {selectedOrder && (
         <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-50 p-8 border-l animate-in slide-in-from-right duration-300">
            <div className="flex justify-between items-center mb-10">
@@ -520,27 +502,161 @@ const ProductModal = ({ onClose, onSave }: any) => {
   );
 };
 
-const VoiceTrainingPanel = ({ config }: any) => {
+// --- GEMINI LIVE AUDIO IMPLEMENTATION ---
+
+const VoiceTrainingPanel = ({ config }: { config: AgentConfig }) => {
   const [status, setStatus] = useState('Standby');
-  const [isTalking, setIsTalking] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [audioLevels, setAudioLevels] = useState<number[]>(new Array(12).fill(15));
+  
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const sessionRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const nextStartTimeRef = useRef<number>(0);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+
+  // Utility functions for decoding/encoding
+  const decode = (base64: string) => {
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+    return bytes;
+  };
+
+  const encode = (bytes: Uint8Array) => {
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  };
+
+  const decodeAudioData = async (data: Uint8Array, ctx: AudioContext) => {
+    const dataInt16 = new Int16Array(data.buffer);
+    const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+    const channelData = buffer.getChannelData(0);
+    for (let i = 0; i < dataInt16.length; i++) channelData[i] = dataInt16[i] / 32768.0;
+    return buffer;
+  };
+
+  const createPCMPath = (data: Float32Array) => {
+    const int16 = new Int16Array(data.length);
+    for (let i = 0; i < data.length; i++) int16[i] = data[i] * 32768;
+    return { data: encode(new Uint8Array(int16.buffer)), mimeType: 'audio/pcm;rate=16000' };
+  };
+
+  const startSession = async () => {
+    try {
+      setStatus('Initializing...');
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+      const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      audioContextRef.current = outputCtx;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Voice Mapping based on persona template
+      const voiceMap: Record<PersonaTemplate, string> = {
+        curator: 'Kore',
+        hustler: 'Fenrir',
+        concierge: 'Charon',
+        friend: 'Zephyr'
+      };
+
+      const sessionPromise = ai.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        callbacks: {
+          onopen: () => {
+            setStatus('Active');
+            setIsActive(true);
+            const source = inputCtx.createMediaStreamSource(stream);
+            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            scriptProcessor.onaudioprocess = (e) => {
+              const inputData = e.inputBuffer.getChannelData(0);
+              // Simple visualizer logic for mic
+              const level = Math.max(...inputData.map(Math.abs));
+              if (level > 0.01) setAudioLevels(prev => prev.map(() => level * 100 + Math.random() * 10));
+              
+              sessionPromise.then(session => session.sendRealtimeInput({ media: createPCMPath(inputData) }));
+            };
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(inputCtx.destination);
+          },
+          onmessage: async (msg) => {
+            const audioBase64 = msg.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            if (audioBase64) {
+              const buffer = await decodeAudioData(decode(audioBase64), outputCtx);
+              const source = outputCtx.createBufferSource();
+              source.buffer = buffer;
+              source.connect(outputCtx.destination);
+              
+              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputCtx.currentTime);
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += buffer.duration;
+              sourcesRef.current.add(source);
+              source.onended = () => sourcesRef.current.delete(source);
+              
+              // Visualizer pulse for AI speaking
+              setAudioLevels(prev => prev.map(() => Math.random() * 80 + 20));
+            }
+            if (msg.serverContent?.interrupted) {
+              sourcesRef.current.forEach(s => s.stop());
+              sourcesRef.current.clear();
+              nextStartTimeRef.current = 0;
+            }
+          },
+          onclose: () => stopSession(),
+          onerror: (e) => { console.error(e); stopSession(); }
+        },
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceMap[config.template] || 'Zephyr' } } },
+          systemInstruction: `You are testing the voice and tone for "${config.name}". Instructions: ${config.customInstructions}. KB: ${config.knowledgeBase}. Keep responses short.`
+        }
+      });
+
+      sessionRef.current = await sessionPromise;
+    } catch (e) {
+      console.error(e);
+      setStatus('Mic Denied');
+    }
+  };
+
+  const stopSession = () => {
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    if (audioContextRef.current) audioContextRef.current.close();
+    setIsActive(false);
+    setStatus('Standby');
+    setAudioLevels(new Array(12).fill(15));
+  };
+
   return (
     <div className="h-full bg-gray-900 rounded-[40px] flex flex-col items-center justify-center p-12 text-center border border-white/5 relative overflow-hidden shadow-2xl">
        <div className="absolute inset-0 bg-gradient-to-b from-green-500/5 to-transparent pointer-events-none"></div>
        <div className="flex items-end space-x-2 h-24 mb-12">
-          {[1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
-            <div key={i} className={`w-2 bg-green-500 rounded-full transition-all duration-300 ${isTalking ? 'animate-pulse' : 'h-4 opacity-10'}`} style={{ height: isTalking ? `${Math.random() * 90 + 10}%` : '15%' }}></div>
+          {audioLevels.map((level, i) => (
+            <div key={i} className="w-2 bg-green-500 rounded-full transition-all duration-150" style={{ height: `${level}%`, opacity: isActive ? 1 : 0.2 }}></div>
           ))}
        </div>
        <h4 className="text-2xl font-black text-white mb-3 tracking-tight">{config.name} Live Persona</h4>
        <div className="flex items-center space-x-2 mb-10">
-          <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
-          <p className="text-xs text-gray-500 font-black tracking-widest uppercase">System: <span className="text-green-400">{status}</span></p>
+          <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500 animate-ping' : 'bg-gray-600'}`}></span>
+          <p className="text-xs text-gray-500 font-black tracking-widest uppercase">System: <span className={isActive ? 'text-green-400' : 'text-gray-500'}>{status}</span></p>
        </div>
-       <button onMouseDown={() => { setStatus('Listening...'); setIsTalking(true); }} onMouseUp={() => { setStatus('Thinking...'); setIsTalking(false); }} className="group relative w-24 h-24 bg-green-600 rounded-full flex items-center justify-center text-white shadow-[0_0_50px_rgba(22,163,74,0.4)] hover:shadow-[0_0_70px_rgba(22,163,74,0.6)] active:scale-90 transition-all cursor-pointer overflow-hidden">
-          <div className="absolute inset-0 bg-white/20 scale-0 group-active:scale-100 transition-transform duration-500 rounded-full"></div>
-          <Mic size={40} className="relative z-10" />
-       </button>
-       <p className="mt-8 text-[11px] text-gray-500 font-black uppercase tracking-widest opacity-50">Hold to speak with brand neural core</p>
+       
+       {!isActive ? (
+          <button onClick={startSession} className="group relative w-24 h-24 bg-green-600 rounded-full flex items-center justify-center text-white shadow-[0_0_50px_rgba(22,163,74,0.4)] hover:shadow-[0_0_70px_rgba(22,163,74,0.6)] active:scale-90 transition-all cursor-pointer">
+            <Mic size={40} className="relative z-10" />
+            <div className="absolute inset-0 bg-white/20 animate-pulse rounded-full"></div>
+          </button>
+       ) : (
+          <button onClick={stopSession} className="group relative w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-white shadow-[0_0_50px_rgba(220,38,38,0.4)] active:scale-90 transition-all cursor-pointer">
+            <X size={40} className="relative z-10" />
+          </button>
+       )}
+       
+       <p className="mt-8 text-[11px] text-gray-500 font-black uppercase tracking-widest opacity-50">
+         {isActive ? "Talk now to test the brand vibe" : "Click to connect to the neural core"}
+       </p>
     </div>
   );
 };
@@ -549,7 +665,6 @@ const SettingsPanel = ({ config, setConfig, onSave }: any) => {
   const handleSave = () => {
     settingsService.updateConfig(config);
     onSave();
-    alert("Neural Vibe Synchronized!");
   };
   return (
     <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500 pb-20">

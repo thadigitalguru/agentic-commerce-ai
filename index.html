@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Agentic Commerce Dashboard</title>
+    <!-- Define process and global for libraries that expect a Node environment -->
+    <script>
+      window.global = window;
+      window.process = { 
+        env: { 
+          NODE_ENV: 'production',
+          // API_KEY is handled by Vite define, but we provide a fallback object here
+        } 
+      };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
   <script type="importmap">
 {
@@ -22,6 +32,6 @@
 </head>
   <body class="bg-gray-50 text-gray-900 font-sans">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
