@@ -14,30 +14,16 @@ Based on the official Product Requirements Document, the MVP scope includes:
 - **Abandoned Cart Recovery**: Automated reminders to recover lost sales.
 - **Minimal Merchant Dashboard**: A unified interface for orders, catalog, and conversations.
 
+## 💡 Implementation Notes
+
+- **M-Pesa Integration**: The current implementation simulates the M-Pesa STK push and payment confirmation. A real-world application would require a backend service and webhook integration.
+- **Abandoned Cart Recovery**: The recovery workflow is simulated using `localStorage` and periodic checks. A production-ready solution would involve a more robust backend scheduling service.
+
 ## 🛠 Tech Stack
 
 - **Frontend**: React 19, Tailwind CSS, Lucide React, Recharts.
 - **AI Integration**: Google GenAI SDK (Gemini 2.5 & 3).
 - **Build Tool**: Vite.
-- **Deployment**: Vercel.
-
-## 📦 Local Setup
-
-1. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-2. **Set Environment Variables**:
-   Create a `.env` file or export the variable directly:
-   ```bash
-   export API_KEY=your_gemini_api_key_here
-   ```
-
-3. **Run Development Server**:
-   ```bash
-   npm run dev
-   ```
 
 ## 🚀 Phase 2 Features (In Progress)
 

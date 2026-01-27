@@ -3,10 +3,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from './components/Layout';
 import WhatsAppSimulator from './components/WhatsAppSimulator';
 import InboxTab from './components/InboxTab';
-import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer
-} from 'recharts';
-import { 
+import {
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+} from 'recharts';import { 
   DollarSign, Plus, Trash2, TrendingUp, Loader2, X, Target, ArrowUpRight, MonitorPlay, 
   UserCheck, Zap, Sparkles, Crown, Languages, 
   ImageIcon, Mic, MessageSquareText,
@@ -377,46 +377,121 @@ const StatCard = ({ title, value, icon: Icon, trend, color }: any) => (
   </div>
 );
 
-const AnalyticsTab = ({ intents }: { intents: Record<string, number> }) => (
-  <div className="space-y-10 animate-in fade-in duration-500 pb-20">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col items-center">
-        <h3 className="text-lg font-black mb-8 flex items-center w-full">
-          <Target size={20} className="mr-2 text-blue-600" /> Intelligent Intent Breakdown
-        </h3>
-        <p className="text-gray-400 text-sm mb-10">Historical intent attribution based on last 100 conversations.</p>
-        <div className="grid grid-cols-2 gap-4 w-full">
-           {Object.entries(intents).map(([k, v], i) => (
-             <div key={k} className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
+const AnalyticsTab = ({ intents, orders, products }: { intents: Record<string, number>; orders: Order[]; products: Product[] }) => {
+  const processRevenueData = (orders: Order[]) => {
+    const monthlyRevenue: { [key: string]: number } = {};
+    orders.forEach(order => {
+      if (order.status === OrderStatus.PAID || order.status === OrderStatus.FULFILLED) {
+        const date = new Date(order.createdAt);
+        const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        monthlyRevenue[monthYear] = (monthlyRevenue[monthYear] || 0) + order.totalAmount;
+      }
+    });
+    return Object.entries(monthlyRevenue)
+      .map(([month, revenue]) => ({ month, revenue }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+  };
+
+  const processTopProductsData = (orders: Order[], products: Product[]) => {
+    const productSales: { [key: number]: { name: string; quantity: number; revenue: number } } = {};
+    orders.forEach(order => {
+      if (order.status === OrderStatus.PAID || order.status === OrderStatus.FULFILLED) {
+        order.items.forEach(item => {
+          if (!productSales[item.productId]) {
+            productSales[item.productId] = { name: item.productName, quantity: 0, revenue: 0 };
+          }
+          productSales[item.productId].quantity += item.quantity;
+          productSales[item.productId].revenue += item.quantity * item.priceAtPurchase;
+        });
+      }
+    });
+    return Object.values(productSales)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5); // Top 5 products
+  };
+
+  const revenueData = processRevenueData(orders);
+  const topProductsData = processTopProductsData(orders, products);
+
+  return (
+    <div className="space-y-10 animate-in fade-in duration-500 pb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Intelligent Intent Breakdown */}
+        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col items-center">
+          <h3 className="text-lg font-black mb-8 flex items-center w-full">
+            <Target size={20} className="mr-2 text-blue-600" /> Intelligent Intent Breakdown
+          </h3>
+          <p className="text-gray-400 text-sm mb-10">Historical intent attribution based on last 100 conversations.</p>
+          <div className="grid grid-cols-2 gap-4 w-full">
+            {Object.entries(intents).map(([k, v]) => (
+              <div key={k} className="p-4 bg-gray-50 rounded-2xl flex justify-between items-center">
                 <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{k}</span>
                 <span className="text-lg font-black text-gray-900">{v}</span>
-             </div>
-           ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Revenue Over Time Chart */}
+        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col">
+          <h3 className="text-lg font-black mb-8 flex items-center">
+            <DollarSign size={20} className="mr-2 text-green-600" /> Revenue Over Time
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={revenueData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <Tooltip formatter={(value: number) => `KES ${value.toLocaleString()}`} />
+              <Legend />
+              <Line type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      <div className="bg-gray-900 p-10 rounded-[40px] text-white flex flex-col shadow-2xl">
-         <h3 className="text-xl font-black mb-10 flex items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top Selling Products Chart */}
+        <div className="bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col">
+          <h3 className="text-lg font-black mb-8 flex items-center">
+            <Package size={20} className="mr-2 text-blue-600" /> Top Selling Products (Revenue)
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={topProductsData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <Tooltip formatter={(value: number) => `KES ${value.toLocaleString()}`} />
+              <Legend />
+              <Bar dataKey="revenue" fill="#2563eb" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Intent-Driven Insights */}
+        <div className="bg-gray-900 p-10 rounded-[40px] text-white flex flex-col shadow-2xl">
+          <h3 className="text-xl font-black mb-10 flex items-center">
             <Sparkles size={24} className="mr-3 text-yellow-400" /> Intent-Driven Insights
-         </h3>
-         <div className="space-y-6 flex-1">
+          </h3>
+          <div className="space-y-6 flex-1">
             {[
               { title: "Price Sensitivity Identified", desc: "40% of customers have high 'Pricing' intent but low conversion. We recommend offering a limited Swahili 'Safaricom Friday' discount.", impact: "Revenue Drain" },
               { title: "Logistics Friction", desc: "Intent recognition shows recurring frustration with shipping timelines. We recommend updating FAQ with exact regional zones.", impact: "High Friction" }
             ].map(insight => (
               <div key={insight.title} className="p-6 bg-white/5 rounded-3xl border border-white/10 hover:bg-white/10 transition-colors">
-                 <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-sm text-yellow-400">{insight.title}</h4>
-                    <span className="text-[9px] font-black text-green-400 border border-green-400/30 px-2 py-0.5 rounded-full">{insight.impact}</span>
-                 </div>
-                 <p className="text-xs text-gray-400 leading-relaxed">{insight.desc}</p>
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-bold text-sm text-yellow-400">{insight.title}</h4>
+                  <span className="text-[9px] font-black text-green-400 border border-green-400/30 px-2 py-0.5 rounded-full">{insight.impact}</span>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">{insight.desc}</p>
               </div>
             ))}
-         </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const OrdersTab = ({ orders, onUpdateStatus, selectedOrder, setSelectedOrder }: any) => {
   return (
