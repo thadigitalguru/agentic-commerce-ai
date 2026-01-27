@@ -13,7 +13,8 @@ This document provides a high-level overview of the Agentic Commerce dashboard's
 ## Project Structure
 
 -   `/src/components`: Contains all React components.
-    -   `WhatsAppSimulator.tsx`: The primary interface for simulating customer-agent interactions.
+    -   `InboxTab.tsx`: A new component that serves as the unified inbox for multi-channel conversations.
+    -   `WhatsAppSimulator.tsx`: The primary interface for simulating customer-agent interactions, now nested within the `InboxTab`.
     -   `Layout.tsx`: The main dashboard structure, including navigation.
     -   `App.tsx`: The root component that assembles the dashboard tabs and manages application-level state.
 -   `/src/services`: Contains modules that handle specific business logic.

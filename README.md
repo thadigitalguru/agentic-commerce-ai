@@ -39,14 +39,29 @@ Based on the official Product Requirements Document, the MVP scope includes:
    npm run dev
    ```
 
-## 🌐 Deployment to Vercel
+## 🚀 Phase 2 Features (In Progress)
 
-1. **Push this code to a GitHub repository.**
-2. **Import the project into Vercel.**
-3. **Add the Environment Variable**:
-   - Key: `API_KEY`
-   - Value: Your Google AI Studio API Key.
-4. **Deploy!**
+- **Instagram Chat Integration**: Connect Instagram DMs to the unified inbox.
+- **Multi-Channel Unified Dashboard**: Manage conversations from WhatsApp and Instagram in one place.
+- **Enhanced Analytics & Reporting**: Detailed charts for revenue, product performance, and conversion.
+
+## 📦 Local Setup
+
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Set Environment Variables**:
+   Create a `.env` file or export the variable directly:
+   ```bash
+   export API_KEY=your_gemini_api_key_here
+   ```
+
+3. **Run Development Server**:
+   ```bash
+   npm run dev
+   ```
 
 ## 🏗 Project Structure
 
