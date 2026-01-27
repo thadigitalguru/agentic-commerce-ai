@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from './components/Layout';
 import WhatsAppSimulator from './components/WhatsAppSimulator';
+import InboxTab from './components/InboxTab';
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer
 } from 'recharts';
@@ -50,10 +51,8 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
-  const [abandoned] = useState<AbandonedCart[]>([
-    { id: 1, customerName: "Otieno J.", total: 4500, lastActive: "2 hours ago", items: [{ productId: 1, name: "Luxury Red Sneakers", price: 4500, quantity: 1 }], recoveryStatus: 'new' },
-    { id: 2, customerName: "Sarah M.", total: 3200, lastActive: "4 hours ago", items: [{ productId: 2, name: "Smart Watch", price: 3200, quantity: 1 }], recoveryStatus: 'new' },
-  ]);
+  const [abandonedCarts, setAbandonedCarts] = useState<AbandonedCart[]>([]);
+  
   const [intents, setIntents] = useState<Record<string, number>>({ discovery: 15, pricing: 8, shipping: 4, checkout: 6, complaint: 2 });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -76,11 +75,22 @@ const App: React.FC = () => {
         const analyzed = await analyzeIntents(c);
         setIntents(analyzed);
       }
+      // Fetch abandoned carts
+      setAbandonedCarts(cartService.getCarts());
     } catch (err) { console.error(err); } 
     finally { setIsLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Polling for abandoned carts
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const updatedCarts = await cartService.checkAndGenerateNudges();
+      setAbandonedCarts(updatedCarts);
+    }, 60 * 1000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const handleUpdateOrderStatus = async (orderId: number, status: OrderStatus) => {
     await orderService.updateStatus(orderId, status);
@@ -88,6 +98,21 @@ const App: React.FC = () => {
     if (selectedOrder?.id === orderId) {
       setSelectedOrder(prev => prev ? { ...prev, status } : null);
     }
+  };
+
+  const handleSendNudge = async (cartId: number, nudgeMessage: string) => {
+    await chatService.log({
+      customerName: "Simulated User", // Assuming a simulated user for abandoned carts
+      message: `[NUDGE SENT]: ${nudgeMessage}`,
+      sender: 'human', // Representing the merchant sending the nudge
+      intent: 'recovery',
+      reasoning: 'Automated abandoned cart nudge',
+      urgency: 'high',
+      sentiment: 'neutral',
+      timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+    });
+    cartService.updateCartStatus(cartId, 'sent');
+    fetchData(); // Refresh data to show updated cart status
   };
 
   const renderOverview = () => {
@@ -99,7 +124,7 @@ const App: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard title="Total Revenue" value={`KES ${orders.reduce((s, o) => s + o.totalAmount, 0).toLocaleString()}`} icon={DollarSign} trend={12.5} color="green" />
           <StatCard title="Agent Sales" value={`KES ${agentRevenue.toLocaleString()}`} icon={Sparkles} trend={8.2} color="blue" />
-          <StatCard title="Active Carts" value={abandoned.length} icon={ShoppingBag} trend={-4.1} color="purple" />
+          <StatCard title="Active Carts" value={abandonedCarts.filter(c => c.recoveryStatus !== 'recovered').length} icon={ShoppingBag} trend={-4.1} color="purple" />
           <StatCard title="AI Response" value="1.8s" icon={Zap} trend={14.1} color="orange" />
         </div>
 
@@ -174,6 +199,50 @@ const App: React.FC = () => {
                </div>
             </div>
           </div>
+
+          <div className="lg:col-span-3 bg-white p-8 rounded-[32px] border border-gray-100 shadow-sm flex flex-col mt-8">
+            <h3 className="font-bold text-gray-800 flex items-center mb-8">
+              <ShoppingBag size={18} className="mr-2 text-purple-600" /> Abandoned Carts
+            </h3>
+            <div className="flex-1 space-y-6 overflow-y-auto max-h-[400px] pr-4 custom-scrollbar">
+              {abandonedCarts.filter(cart => cart.recoveryStatus !== 'recovered').length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-300">
+                  <ShoppingCart size={48} className="mb-4 opacity-20" />
+                  <p className="text-sm font-medium">No abandoned carts to recover!</p>
+                </div>
+              ) : (
+                abandonedCarts.filter(cart => cart.recoveryStatus !== 'recovered').map(cart => (
+                  <div key={cart.id} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 flex flex-col space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-gray-900">{cart.customerName}</p>
+                        <p className="text-xs text-gray-500">Cart Total: KES {cart.total.toLocaleString()}</p>
+                      </div>
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{new Date(cart.lastActive).toLocaleTimeString()}</span>
+                    </div>
+                    {cart.recoveryMessage && cart.recoveryStatus === 'generated' && (
+                      <div className="border-t border-gray-200 pt-4 flex flex-col space-y-3">
+                        <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest">AI Recovery Nudge</p>
+                        <p className="text-sm text-gray-700 italic">"{cart.recoveryMessage}"</p>
+                        <button 
+                          onClick={() => handleSendNudge(cart.id, cart.recoveryMessage || '')}
+                          className="w-full bg-purple-600 text-white px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-purple-700 transition-colors"
+                        >
+                          <Send size={14} className="inline mr-2" /> Send Nudge
+                        </button>
+                      </div>
+                    )}
+                     {cart.recoveryStatus === 'sent' && (
+                        <div className="border-t border-gray-200 pt-4 flex items-center space-x-2 text-green-600 font-bold">
+                           <CheckCircle2 size={16} />
+                           <span className="text-xs">Nudge Sent!</span>
+                        </div>
+                     )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -182,6 +251,9 @@ const App: React.FC = () => {
   return (
     <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       {activeTab === 'overview' && renderOverview()}
+      {activeTab === 'inbox' && (
+        <InboxTab products={products} onOrderCreated={fetchData} onNewMessage={fetchData} />
+      )}
       {activeTab === 'agent' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-500 h-[calc(100vh-220px)]">
           <div className="lg:col-span-1 h-full flex flex-col space-y-6">
@@ -199,10 +271,16 @@ const App: React.FC = () => {
                    <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${isVoiceTesting ? 'translate-x-6' : 'translate-x-0'}`}></div>
                 </button>
              </div>
+             {/* The WhatsAppSimulator has been moved to the InboxTab */}
              {isVoiceTesting ? (
                <VoiceTrainingPanel config={agentConfig} />
              ) : (
-               <WhatsAppSimulator products={products} onOrderCreated={fetchData} onNewMessage={fetchData} />
+                <div className="h-full bg-gray-50 rounded-[40px] flex flex-col items-center justify-center p-12 text-center border border-gray-100 relative overflow-hidden shadow-sm">
+                   <BrainCircuit size={48} className="mb-4 text-green-600 opacity-30" />
+                   <h4 className="text-xl font-black text-gray-800 mb-2">Agent Configuration</h4>
+                   <p className="text-sm text-gray-500">Manage AI persona and training settings.</p>
+                   <p className="text-sm text-gray-500 mt-4">WhatsApp conversations are now managed in the <span className="font-bold text-green-600">Inbox</span> tab.</p>
+                </div>
              )}
           </div>
           <div className="lg:col-span-2 bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm overflow-y-auto relative flex flex-col">

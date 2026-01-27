@@ -65,6 +65,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           />
           <SidebarItem 
             icon={MessageSquare} 
+            label="Inbox" 
+            id="inbox" 
+            active={activeTab === 'inbox'} 
+            onClick={setActiveTab} 
+          />
+          <SidebarItem 
+            icon={MessageSquare} 
             label="AI Agent" 
             id="agent" 
             active={activeTab === 'agent'} 

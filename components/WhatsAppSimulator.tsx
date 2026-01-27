@@ -144,43 +144,6 @@ const WhatsAppSimulator: React.FC<WhatsAppSimulatorProps> = ({ products, onOrder
     if (onNewMessage) onNewMessage();
   };
 
-  const handleSTKConfirm = async () => {
-    setIsSTKPushVisible(false);
-    const total = agentState.cart.reduce((a, b) => a + (b.price * b.quantity), 0);
-    
-    const newOrder: Omit<Order, 'id'> = {
-      merchantId: 1,
-      customerId: 999,
-      customerName: "Simulated User",
-      status: OrderStatus.PAID,
-      totalAmount: total,
-      deliveryAddress: agentState.address,
-      createdAt: new Date().toLocaleString(),
-      attributedTo: isManualMode ? 'human' : 'agent',
-      items: agentState.cart.map(c => ({
-        id: Math.random(),
-        productId: c.productId,
-        productName: c.name,
-        quantity: c.quantity,
-        priceAtPurchase: c.price
-      }))
-    };
-
-    await orderService.create(newOrder);
-    if (onOrderCreated) onOrderCreated();
-
-    const confirmation = `🎉 Payment Confirmed! KES ${total.toLocaleString()} received. Thank you!`;
-    setMessages(prev => [...prev, {
-      id: Date.now() + 2,
-      sender: 'bot',
-      content: confirmation,
-      timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    }]);
-    await chatService.log({ customerName: "Simulated User", message: confirmation, sender: 'bot', intent: 'checkout', urgency: 'high' });
-    if (onNewMessage) onNewMessage();
-    setAgentState({ cart: [], currentStep: 'complete' });
-  };
-
   return (
     <div className={`flex flex-col h-full bg-[#E5DDD5] rounded-[40px] overflow-hidden border border-gray-300 shadow-2xl relative transition-all duration-700 ${SENTIMENT_GLOW[currentSentiment]}`}>
       {/* Header */}
@@ -276,7 +239,7 @@ const WhatsAppSimulator: React.FC<WhatsAppSimulatorProps> = ({ products, onOrder
             </div>
             <h4 className="font-black text-xl mb-2 text-gray-900 uppercase tracking-tight">STK PUSH SENT</h4>
             <p className="text-xs text-gray-500 mb-8 font-medium">Please enter your M-Pesa PIN on the phone ending in 07xx...xxx</p>
-            <button onClick={handleSTKConfirm} className="w-full bg-green-600 text-white py-4 rounded-2xl font-black uppercase tracking-[0.2em] shadow-lg active:scale-95 transition-all">I HAVE PAID</button>
+            <p className="text-sm text-gray-600 font-bold uppercase tracking-widest">Awaiting Payment Confirmation...</p>
           </div>
         </div>
       )}
