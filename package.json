@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --debug",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -18,7 +19,7 @@
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^5.1.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.3"
   }

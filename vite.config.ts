@@ -1,19 +1,14 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App";
 
-export default defineConfig({
-  plugins: [react()],
-  define: {
-    // Specifically define individual property strings to ensure they are replaced everywhere
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
-  },
-  server: {
-    port: 3000,
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-    emptyOutDir: true,
-  }
-});
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
